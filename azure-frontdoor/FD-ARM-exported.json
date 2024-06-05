@@ -1,0 +1,126 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "profiles_contosoAFD_name": {
+      "defaultValue": "contosoAFD",
+      "type": "String"
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "type": "Microsoft.Cdn/profiles",
+      "apiVersion": "2024-02-01",
+      "name": "[parameters('profiles_contosoAFD_name')]",
+      "location": "Global",
+      "sku": {
+        "name": "Premium_AzureFrontDoor"
+      },
+      "kind": "frontdoor",
+      "properties": {
+        "originResponseTimeoutSeconds": 30
+      }
+    },
+    {
+      "type": "Microsoft.Cdn/profiles/afdendpoints",
+      "apiVersion": "2024-02-01",
+      "name": "[concat(parameters('profiles_contosoAFD_name'), '/contosofrontend')]",
+      "location": "Global",
+      "dependsOn": [
+        "[resourceId('Microsoft.Cdn/profiles', parameters('profiles_contosoAFD_name'))]"
+      ],
+      "properties": {
+        "enabledState": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.Cdn/profiles/origingroups",
+      "apiVersion": "2024-02-01",
+      "name": "[concat(parameters('profiles_contosoAFD_name'), '/og')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Cdn/profiles', parameters('profiles_contosoAFD_name'))]"
+      ],
+      "properties": {
+        "loadBalancingSettings": {
+          "sampleSize": 4,
+          "successfulSamplesRequired": 3,
+          "additionalLatencyInMilliseconds": 50
+        },
+        "healthProbeSettings": {
+          "probePath": "/",
+          "probeRequestType": "GET",
+          "probeProtocol": "Http",
+          "probeIntervalInSeconds": 60
+        },
+        "sessionAffinityState": "Disabled"
+      }
+    },
+    {
+      "type": "Microsoft.Cdn/profiles/origingroups/origins",
+      "apiVersion": "2024-02-01",
+      "name": "[concat(parameters('profiles_contosoAFD_name'), '/og/contoso1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Cdn/profiles/origingroups', parameters('profiles_contosoAFD_name'), 'og')]",
+        "[resourceId('Microsoft.Cdn/profiles', parameters('profiles_contosoAFD_name'))]"
+      ],
+      "properties": {
+        "hostName": "kj-webappcontoso-01.azurewebsites.net",
+        "httpPort": 80,
+        "httpsPort": 443,
+        "originHostHeader": "kj-webappcontoso-01.azurewebsites.net",
+        "priority": 1,
+        "weight": 1000,
+        "enabledState": "Enabled",
+        "enforceCertificateNameCheck": true
+      }
+    },
+    {
+      "type": "Microsoft.Cdn/profiles/origingroups/origins",
+      "apiVersion": "2024-02-01",
+      "name": "[concat(parameters('profiles_contosoAFD_name'), '/og/contoso2')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Cdn/profiles/origingroups', parameters('profiles_contosoAFD_name'), 'og')]",
+        "[resourceId('Microsoft.Cdn/profiles', parameters('profiles_contosoAFD_name'))]"
+      ],
+      "properties": {
+        "hostName": "kj-webappcontoso-02.azurewebsites.net",
+        "httpPort": 80,
+        "httpsPort": 443,
+        "originHostHeader": "kj-webappcontoso-02.azurewebsites.net",
+        "priority": 1,
+        "weight": 1000,
+        "enabledState": "Enabled",
+        "enforceCertificateNameCheck": true
+      }
+    },
+    {
+      "type": "Microsoft.Cdn/profiles/afdendpoints/routes",
+      "apiVersion": "2024-02-01",
+      "name": "[concat(parameters('profiles_contosoAFD_name'), '/contosofrontend/defaultroute')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Cdn/profiles/afdendpoints', parameters('profiles_contosoAFD_name'), 'contosofrontend')]",
+        "[resourceId('Microsoft.Cdn/profiles', parameters('profiles_contosoAFD_name'))]",
+        "[resourceId('Microsoft.Cdn/profiles/origingroups', parameters('profiles_contosoAFD_name'), 'og')]"
+      ],
+      "properties": {
+        "customDomains": [],
+        "originGroup": {
+          "id": "[resourceId('Microsoft.Cdn/profiles/origingroups', parameters('profiles_contosoAFD_name'), 'og')]"
+        },
+        "ruleSets": [],
+        "supportedProtocols": [
+          "Http",
+          "Https"
+        ],
+        "patternsToMatch": [
+          "/*"
+        ],
+        "forwardingProtocol": "MatchRequest",
+        "linkToDefaultDomain": "Enabled",
+        "httpsRedirect": "Enabled",
+        "enabledState": "Enabled"
+      }
+    }
+  ]
+}
